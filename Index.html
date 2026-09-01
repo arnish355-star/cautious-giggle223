@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NovaOS - Web Desktop</title>
+    <style>
+        :root {
+            --bg-glass: rgba(18, 20, 29, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.12);
+            --accent: #00f2fe;
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --text: #f0f6fc;
+            --taskbar-bg: rgba(13, 17, 23, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background: radial-gradient(circle at 10% 20%, rgb(15, 23, 42) 0%, rgb(3, 7, 18) 90.2%);
+            color: var(--text);
+        }
+
+        /* Desktop Grid */
+        #desktop {
+            position: absolute;
+            inset: 0;
+            bottom: 48px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 90px);
+            grid-auto-rows: 90px;
+            gap: 16px;
+            padding: 20px;
+            z-index: 1;
+        }
+
+        .desktop-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .desktop-icon:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .desktop-icon:active {
+            transform: scale(0.95);
+        }
+
+        .desktop-icon svg {
+            width: 38px;
+            height: 38px;
+            fill: var(--accent);
+        }
+
+        .desktop-icon span {
+            font-size: 12px;
+            text-align: center;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Window Styling */
+        .window {
+            position: absolute;
+            min-width: 320px;
+            min-height: 200px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .window-header {
+            height: 36px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            cursor: grab;
+        }
+
+        .window-header:active {
+            cursor: grabbing;
+        }
+
+        .window-title {
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .close-btn { background: #ff5f56; }
+        .min-btn { background: #ffbd2e; }
+        .max-btn { background: #27c93f; }
+
+        .window-body {
+            flex: 1;
+            padding: 12px;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* Taskbar */
+        #taskbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: var(--taskbar-bg);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-glass);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 9999;
+        }
+
+        .taskbar-left, .taskbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #start-button {
+            background: var(--accent-gradient);
+            border: none;
+            color: #000;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+
+        #start-button:hover {
+            opacity: 0.9;
+        }
+
+        #clock {
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        /* Start Menu */
+        #start-menu {
+            position: absolute;
+            bottom: 56px;
+            left: 16px;
+            width: 280px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 12px;
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 10000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Terminal App */
+        .terminal-container {
+            font-family: "Courier New", Courier, monospace;
+            color: #4af626;
+            background: #000;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            border-radius: 4px;
+            overflow-y: auto;
+        }
+
+        .terminal-output {
+            white-space: pre-wrap;
+            line-height: 1.4;
+            font-size: 13px;
+        }
+
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .terminal-prompt {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-family: monospace;
+            flex: 1;
+            font-size: 13px;
+        }
+
+        /* Editor App */
+        .editor-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+            padding: 10px;
+            color: #fff;
+            outline: none;
+            resize: none;
+            font-family: monospace;
+        }
+
+        /* SysMon App */
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .metric-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .metric-fill {
+            height: 100%;
+            background: var(--accent-gradient);
+            width: 20%;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="desktop">
+        <div class="desktop-icon" onclick="WindowManager.open('terminal')">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zM6 10l4 3-4 3v-2l1.33-1L6 12v-2zm6 5h6v1h-6v-1z"/></svg>
+            <span>Terminal</span>
+        </div>
+        <div class="desktop-icon" onclick="WindowManager.open('editor')">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            <span>Notepad</span>
+        </div>
+        <div class="desktop-icon" onclick="WindowManager.open('sysmon')">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-3-4-2 2H4v-2h2.24l2.76-2.76L12 14.5l3.24-5.24L18 13.5H20v2h-3.24l-2.76-4.5L12 17z"/></svg>
+            <span>System</span>
+        </div>
+    </div>
+
+    <div id="start-menu">
+        <div class="menu-item" onclick="WindowManager.open('terminal'); toggleStartMenu();">💻 Terminal</div>
+        <div class="menu-item" onclick="WindowManager.open('editor'); toggleStartMenu();">📝 Notepad</div>
+        <div class="menu-item" onclick="WindowManager.open('sysmon'); toggleStartMenu();">⚡ Resource Monitor</div>
+        <div class="menu-item" onclick="toggleTheme(); toggleStartMenu();">🎨 Switch Wallpaper</div>
+    </div>
+
+    <div id="taskbar">
+        <div class="taskbar-left">
+            <button id="start-button" onclick="toggleStartMenu()">⚡ NovaOS</button>
+        </div>
+        <div class="taskbar-right">
+            <span id="clock">00:00:00</span>
+        </div>
+    </div>
+
+    <script>
+        // System Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Start Menu Toggle
+        function toggleStartMenu() {
+            const menu = document.getElementById('start-menu');
+            menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('start-menu');
+            const btn = document.getElementById('start-button');
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+
+        // Wallpaper Toggle
+        let currentBg = 0;
+        const bgs = [
+            'radial-gradient(circle at 10% 20%, rgb(15, 23, 42) 0%, rgb(3, 7, 18) 90.2%)',
+            'radial-gradient(circle at 50% 50%, #1a0826 0%, #000000 100%)',
+            'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)'
+        ];
+        function toggleTheme() {
+            currentBg = (currentBg + 1) % bgs.length;
+            document.body.style.background = bgs[currentBg];
+        }
+
+        // Window Manager
+        let highestZ = 100;
+
+        const WindowManager = {
+            open: function(appId) {
+                if (document.getElementById(`win-${appId}`)) {
+                    this.focus(`win-${appId}`);
+                    return;
+                }
+
+                const win = document.createElement('div');
+                win.className = 'window';
+                win.id = `win-${appId}`;
+                win.style.top = `${100 + Math.random() * 50}px`;
+                win.style.left = `${150 + Math.random() * 100}px`;
+                win.style.zIndex = ++highestZ;
+
+                let appTitle = '';
+                let appContent = '';
+                let width = '480px';
+                let height = '340px';
+
+                if (appId === 'terminal') {
+                    appTitle = 'Terminal Emulator';
+                    width = '550px';
+                    height = '350px';
+                    appContent = `
+                        <div class="terminal-container" onclick="document.getElementById('term-input').focus()">
+                            <div class="terminal-output" id="term-out">NovaOS v1.0.4 Shell (x86_64-pc-none)\nType 'help' for available system commands.\n\n</div>
+                            <div class="terminal-input-row">
+                                <span class="terminal-prompt">root@nova:~$</span>
+                                <input type="text" class="terminal-input" id="term-input" onkeydown="handleTerminalInput(event)" autofocus autocomplete="off"/>
+                            </div>
+                        </div>`;
+                } else if (appId === 'editor') {
+                    appTitle = 'Notepad';
+                    const savedNote = localStorage.getItem('novaos_note') || 'Welcome to NovaOS Notepad.\nChanges are auto-saved to localStorage.';
+                    appContent = `
+                        <div class="editor-container">
+                            <textarea class="editor-textarea" oninput="localStorage.setItem('novaos_note', this.value)">${savedNote}</textarea>
+                        </div>`;
+                } else if (appId === 'sysmon') {
+                    appTitle = 'Resource Monitor';
+                    appContent = `
+                        <div style="font-size: 13px;">
+                            <div class="metric-card">
+                                <div>CPU Core Load (<span id="cpu-val">12%</span>)</div>
+                                <div class="metric-bar"><div class="metric-fill" id="cpu-bar" style="width: 12%"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div>RAM Usage (<span id="ram-val">3.2 / 8.0 GB</span>)</div>
+                                <div class="metric-bar"><div class="metric-fill" id="ram-bar" style="width: 40%"></div></div>
+                            </div>
+                            <div class="metric-card">
+                                <div>Virtual Memory (Swap): 1.1 GB Active</div>
+                            </div>
+                        </div>`;
+                }
+
+                win.style.width = width;
+                win.style.height = height;
+
+                win.innerHTML = `
+                    <div class="window-header" onmousedown="WindowManager.dragStart(event, '${win.id}')">
+                        <div class="window-title">${appTitle}</div>
+                        <div class="window-controls">
+                            <button class="control-btn min-btn"></button>
+                            <button class="control-btn close-btn" onclick="WindowManager.close('${win.id}')"></button>
+                        </div>
+                    </div>
+                    <div class="window-body" onmousedown="WindowManager.focus('${win.id}')">
+                        ${appContent}
+                    </div>
+                `;
+
+                document.body.appendChild(win);
+                this.focus(win.id);
+
+                if (appId === 'terminal') {
+                    setTimeout(() => document.getElementById('term-input')?.focus(), 50);
+                }
+            },
+
+            close: function(winId) {
+                const el = document.getElementById(winId);
+                if (el) el.remove();
+            },
+
+            focus: function(winId) {
+                const el = document.getElementById(winId);
+                if (el) el.style.zIndex = ++highestZ;
+            },
+
+            dragStart: function(e, winId) {
+                const win = document.getElementById(winId);
+                this.focus(winId);
+
+                let shiftX = e.clientX - win.getBoundingClientRect().left;
+                let shiftY = e.clientY - win.getBoundingClientRect().top;
+
+                function moveAt(pageX, pageY) {
+                    win.style.left = pageX - shiftX + 'px';
+                    win.style.top = pageY - shiftY + 'px';
+                }
+
+                function onMouseMove(event) {
+                    moveAt(event.pageX, event.pageY);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+
+                document.onmouseup = function() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.onmouseup = null;
+                };
+            }
+        };
+
+        // System Monitor Simulator Loop
+        setInterval(() => {
+            const cpu = Math.floor(Math.random() * 65) + 10;
+            const ram = (Math.random() * 2 + 2.5).toFixed(1);
+            const ramPerc = Math.round((ram / 8.0) * 100);
+
+            const cpuVal = document.getElementById('cpu-val');
+            const cpuBar = document.getElementById('cpu-bar');
+            const ramVal = document.getElementById('ram-val');
+            const ramBar = document.getElementById('ram-bar');
+
+            if (cpuVal && cpuBar) {
+                cpuVal.innerText = `${cpu}%`;
+                cpuBar.style.width = `${cpu}%`;
+            }
+            if (ramVal && ramBar) {
+                ramVal.innerText = `${ram} / 8.0 GB`;
+                ramBar.style.width = `${ramPerc}%`;
+            }
+        }, 1200);
+
+        // Terminal Engine
+        function handleTerminalInput(e) {
+            if (e.key === 'Enter') {
+                const input = e.target.value.trim();
+                const out = document.getElementById('term-out');
+                out.innerText += `root@nova:~$ ${input}\n`;
+
+                const args = input.split(' ');
+                const cmd = args[0].toLowerCase();
+
+                switch (cmd) {
+                    case 'help':
+                        out.innerText += `Available Commands:
+  help       - List system commands
+  neofetch   - Display OS info summary
+  theme      - Toggle wallpaper background
+  date       - Print current datetime
+  ls         - List virtual filesystem directory
+  cat <file> - Read a mock system file
+  calc <exp> - Evaluate math expression
+  clear      - Clear terminal screen\n\n`;
+                        break;
+                    case 'neofetch':
+                        out.innerText += `
+      /\\_             OS: NovaOS x86_64 Web Edition
+     ( o.o )          Host: Browser Runtime JS-V8
+      > ^ <           Uptime: Hackathon Mode
+                      Shell: bash-web.min
+                      Memory: 4096MB / 8192MB\n\n`;
+                        break;
+                    case 'theme':
+                        toggleTheme();
+                        out.innerText += "Background theme shifted.\n\n";
+                        break;
+                    case 'date':
+                        out.innerText += `${new Date().toString()}\n\n`;
+                        break;
+                    case 'ls':
+                        out.innerText += "system.sys   credentials.env   flag.txt   notes.md\n\n";
+                        break;
+                    case 'cat':
+                        if (args[1] === 'flag.txt') {
+                            out.innerText += "FLAG{n0v4_0s_w3b_h4ck4th0n_w1nn3r}\n\n";
+                        } else if (args[1] === 'notes.md') {
+                            out.innerText += "# TODO: Ship the hackathon project!\n\n";
+                        } else {
+                            out.innerText += `cat: ${args[1] || 'target'}: No such file or directory\n\n`;
+                        }
+                        break;
+                    case 'calc':
+                        try {
+                            const expression = input.replace('calc', '');
+                            out.innerText += `Result: ${Function(`'use strict'; return (${expression})`)()}\n\n`;
+                        } catch (err) {
+                            out.innerText += "Error: Invalid mathematical expression\n\n";
+                        }
+                        break;
+                    case 'clear':
+                        out.innerText = '';
+                        break;
+                    case '':
+                        break;
+                    default:
+                        out.innerText += `nova-sh: command not found: ${cmd}\n\n`;
+                }
+
+                e.target.value = '';
+                const container = out.parentElement;
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        // Open Default Terminal on Launch
+        window.onload = () => WindowManager.open('terminal');
+    </script>
+</body>
+</html>
